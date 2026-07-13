@@ -64,14 +64,6 @@ export default function Header({ user, onLogout }: HeaderProps) {
             >
               Orders
             </Link>
-            {user && (
-              <Link
-                to="/admin"
-                className="rounded-full px-3 py-2 font-semibold text-red-600 transition-all duration-200 hover:bg-white/40 hover:text-red-500"
-              >
-                Admin
-              </Link>
-            )}
           </nav>
 
           <div className="flex items-center space-x-2 sm:space-x-3">
@@ -175,15 +167,6 @@ export default function Header({ user, onLogout }: HeaderProps) {
             >
               Orders
             </Link>
-            {user && (
-              <Link
-                to="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block rounded-xl px-4 py-2.5 font-semibold text-red-600 transition-colors hover:bg-white/40"
-              >
-                Admin Panel
-              </Link>
-            )}
 
             {user ? (
               <div className="space-y-2 border-t border-slate-100 pt-2">
