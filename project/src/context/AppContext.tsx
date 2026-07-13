@@ -64,6 +64,7 @@ interface AppContextType {
   setCurrentRestaurant: (restaurant: Restaurant | null) => void;
   placeOrder: (address: string, paymentMode?: string, tip?: number, discount?: number) => Promise<any>;
   fetchOrders: () => Promise<void>;
+  updateOrderStatus: (orderId: string, nextStatus: string) => void;
   getCartTotal: () => number;
   getCartItemCount: () => number;
   clearAllData: () => void;
@@ -623,9 +624,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           discount: o.discount,
         }));
         setOrders(formattedOrders);
+        return;
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+    }
+
+    // Fallback to local storage
+    const stored = localStorage.getItem('localOrders');
+    if (stored) {
+      setOrders(JSON.parse(stored));
     }
   };
 
@@ -674,6 +682,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       data = {
         id: `ORD${Date.now()}`,
         restaurantName: payload.restaurantName,
+        vendorId: payload.vendorId,
         items: payload.items,
         total: subtotal + 40 + taxes + tip - discount,
         status: 'preparing',
@@ -695,6 +704,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prefill: { name: 'Customer', email: 'customer@example.com', contact: '9999999999' }
         } : undefined
       };
+
+      // Save to local storage
+      const localOrderToSave = {
+        id: data.id,
+        restaurantName: data.restaurantName,
+        vendorId: data.vendorId || payload.vendorId,
+        items: data.items,
+        total: data.total,
+        status: data.status,
+        date: data.date,
+        address: data.address,
+        tip: data.tip || 0,
+        paymentMode: data.paymentMode || 'COD',
+        subtotal: data.subtotal,
+        deliveryFee: data.deliveryFee,
+        taxes: data.taxes,
+        discount: data.discount,
+      };
+      const existingLocal = JSON.parse(localStorage.getItem('localOrders') || '[]');
+      localStorage.setItem('localOrders', JSON.stringify([localOrderToSave, ...existingLocal]));
     }
 
     const newOrder: Order = {
@@ -719,6 +748,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clearCart();
     }
     return data;
+  };
+
+  const updateOrderStatus = (orderId: string, nextStatus: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+    );
+
+    const localOrders = JSON.parse(localStorage.getItem('localOrders') || '[]');
+    const updatedLocal = localOrders.map((o: any) =>
+      o.id === orderId ? { ...o, status: nextStatus } : o
+    );
+    localStorage.setItem('localOrders', JSON.stringify(updatedLocal));
   };
 
   const getCartTotal = () =>
@@ -749,6 +790,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentRestaurant,
         placeOrder,
         fetchOrders,
+        updateOrderStatus,
         getCartTotal,
         getCartItemCount,
         clearAllData,

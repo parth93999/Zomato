@@ -14,9 +14,10 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 type RangeKey = '7d' | '30d' | '90d';
-type OrderStatus = 'Pending' | 'Preparing' | 'Out for delivery' | 'Delivered';
+type OrderStatus = 'pending' | 'preparing' | 'on-the-way' | 'delivered';
 
 type Order = {
   id: string;
@@ -41,44 +42,76 @@ const quickActions = [
 ];
 
 const initialOrders: Order[] = [
-  { id: '#1024', customer: 'Aarav', item: 'Paneer Butter Masala', amount: 320, status: 'Preparing', eta: '12 min', priority: 'High' },
-  { id: '#1025', customer: 'Nisha', item: 'Loaded Burger', amount: 480, status: 'Pending', eta: '18 min', priority: 'Medium' },
-  { id: '#1026', customer: 'Rohan', item: 'Veg Biryani', amount: 260, status: 'Out for delivery', eta: '5 min', priority: 'High' },
-  { id: '#1027', customer: 'Maya', item: 'Chocolate Lava Cake', amount: 180, status: 'Delivered', eta: 'Delivered', priority: 'Low' },
+  { id: '#1024', customer: 'Aarav', item: 'Paneer Butter Masala', amount: 320, status: 'preparing', eta: '12 min', priority: 'High' },
+  { id: '#1025', customer: 'Nisha', item: 'Loaded Burger', amount: 480, status: 'pending', eta: '18 min', priority: 'Medium' },
+  { id: '#1026', customer: 'Rohan', item: 'Veg Biryani', amount: 260, status: 'on-the-way', eta: '5 min', priority: 'High' },
+  { id: '#1027', customer: 'Maya', item: 'Chocolate Lava Cake', amount: 180, status: 'delivered', eta: 'Delivered', priority: 'Low' },
 ];
 
 const nextStatus: Record<OrderStatus, OrderStatus> = {
-  Pending: 'Preparing',
-  Preparing: 'Out for delivery',
-  'Out for delivery': 'Delivered',
-  Delivered: 'Delivered',
+  pending: 'preparing',
+  preparing: 'on-the-way',
+  'on-the-way': 'delivered',
+  delivered: 'delivered',
 };
 
 export default function Admin() {
   const [range, setRange] = useState<RangeKey>('30d');
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory'>('overview');
   const [search, setSearch] = useState('');
-  const [orders, setOrders] = useState(initialOrders);
+
+  // Real orders from context
+  const { orders: contextOrders, updateOrderStatus } = useApp();
+
+  // Mock orders state to support advancing mock orders locally
+  const [mockOrders, setMockOrders] = useState<Order[]>(initialOrders);
+
+  // Combine real and mock orders
+  const allOrders = useMemo(() => {
+    const mappedReal = contextOrders.map((o) => ({
+      id: o.id,
+      customer: o.address ? o.address.split(',')[0] : 'Customer',
+      item: o.items ? o.items.map((item) => `${item.quantity}x ${item.name}`).join(', ') : 'Custom Menu',
+      amount: o.total,
+      status: o.status as OrderStatus,
+      eta: o.status === 'pending' ? '18 min' : o.status === 'preparing' ? '12 min' : o.status === 'on-the-way' ? '5 min' : 'Delivered',
+      priority: (o.total > 500 ? 'High' : 'Medium') as 'High' | 'Medium' | 'Low',
+    }));
+
+    return [...mappedReal, ...mockOrders];
+  }, [contextOrders, mockOrders]);
 
   const metrics = statsByRange[range];
 
   const filteredOrders = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return orders;
-    return orders.filter((order) => {
+    if (!needle) return allOrders;
+    return allOrders.filter((order) => {
       return [order.id, order.customer, order.item, order.status].some((value) => value.toLowerCase().includes(needle));
     });
-  }, [orders, search]);
+  }, [allOrders, search]);
 
-  const pendingCount = orders.filter((order) => order.status !== 'Delivered').length;
+  const pendingCount = allOrders.filter((order) => order.status !== 'delivered').length;
 
   const advanceOrder = (id: string) => {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== id) return order;
-        return { ...order, status: nextStatus[order.status] };
-      })
-    );
+    // Check if it's a real order
+    const isReal = contextOrders.some((o) => o.id === id);
+    const targetOrder = allOrders.find((o) => o.id === id);
+    if (!targetOrder) return;
+
+    const next = nextStatus[targetOrder.status];
+    if (next) {
+      if (isReal) {
+        updateOrderStatus(id, next);
+      } else {
+        setMockOrders((current) =>
+          current.map((order) => {
+            if (order.id !== id) return order;
+            return { ...order, status: next };
+          })
+        );
+      }
+    }
   };
 
   return (
@@ -269,9 +302,9 @@ export default function Admin() {
                         <Clock3 className="h-3.5 w-3.5" />
                         {order.eta}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 capitalize">
                         <Box className="h-3.5 w-3.5" />
-                        {order.status}
+                        {order.status === 'on-the-way' ? 'Out for delivery' : order.status}
                       </span>
                     </div>
                   </div>
@@ -285,7 +318,7 @@ export default function Admin() {
                       onClick={() => advanceOrder(order.id)}
                       className="rounded-full bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
                     >
-                      {order.status === 'Delivered' ? 'Completed' : 'Advance'}
+                      {order.status === 'delivered' ? 'Completed' : 'Advance'}
                     </button>
                   </div>
                 </div>
