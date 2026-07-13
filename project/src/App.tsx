@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import ProtectRoutes from './ProtectRoutes';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Admin from './pages/Admin';
 
 function App() {
   const { clearAllData } = useApp();
@@ -65,6 +66,7 @@ function App() {
                 <Profile user={user} onLogout={handleLogout} />
               </ProtectRoutes>
             } />
+            <Route path="admin" element={<Admin />} />
             <Route path="login" element={<Login onAuth={handleAuth} />} />
             <Route path="signup" element={<Signup onAuth={handleAuth} />} />
           </Route>
