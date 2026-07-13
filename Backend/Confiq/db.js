@@ -1,19 +1,7 @@
-const mysql = require('mysql2');
+const Sequelize = require('sequelize');
 
-const connection = mysql.createConnection({
-  host: 'tokaido.proxy.rlwy.net',
-  port: 43983,
-  user: 'root',
-  password: 'sElHAkatAmocdzMFZIccZHKASkWHWymt',
-  database: 'railway'
+const db = new Sequelize('mysql://root:sElHAkatAmocdzMFZIccZHKASkWHWymt@tokaido.proxy.rlwy.net:43983/railway', {
+  logging: false,
 });
 
-connection.connect((err) => {
-  if (err) {
-    console.error('Error connecting to database:', err);
-    return;
-  }
-  console.log('Connected to database successfully');
-});
-
-module.exports = connection;
+module.exports = db;
